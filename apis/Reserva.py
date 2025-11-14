@@ -29,7 +29,7 @@ async def obtener_reservas(
         )
 
 
-@router.get("/{id_biblioteca}/reserva/{id_resvera}", response_model=ReservaResponse)
+@router.get("/{id_biblioteca}/reserva/{id_reserva}", response_model=ReservaResponse)
 async def obtener_reserva(
     id_reserva: UUID, id_biblioteca: UUID, db: Session = Depends(get_db)
 ):

@@ -1,7 +1,7 @@
 from typing import List, Optional
 from uuid import UUID
 from entities.Cliente import Cliente
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 
 class ClienteCRUD:
@@ -18,7 +18,14 @@ class ClienteCRUD:
         """
         self.db = db
 
-    def crear_cliente(self, nombre: str, tipo_cliente: str, detalle_tipo: str, id_biblioteca: UUID, id_usuario_crea: UUID = None) -> Cliente:
+    def crear_cliente(
+        self,
+        nombre: str,
+        tipo_cliente: str,
+        detalle_tipo: str,
+        id_biblioteca: UUID,
+        id_usuario_crea: UUID = None,
+    ) -> Cliente:
         """
         Crea un nuevo cliente en la base de datos.
 
@@ -27,7 +34,7 @@ class ClienteCRUD:
             tipo_cliente (str): Tipo de cliente (ej. estudiante, profesor).
             detalle_tipo (str): Detalle adicional sobre el tipo de cliente.
             id_biblioteca (UUID): Identificador único de la biblioteca asociada.
-            id_usuario_crea (UUID, opcional): Usuario que crea el cliente. 
+            id_usuario_crea (UUID, opcional): Usuario que crea el cliente.
                 Si no se especifica, se asigna un administrador por defecto.
 
         Returns:
@@ -41,16 +48,20 @@ class ClienteCRUD:
             raise ValueError("El nombre del cliente es obligatorio")
         if len(nombre) > 150:
             raise ValueError("El nombre no puede exceder 150 caracteres")
-        
+
         if not tipo_cliente or len(tipo_cliente.strip()) == 0:
             raise ValueError("El tipo de cliente es obligatorio")
 
         if not detalle_tipo or len(detalle_tipo.strip()) == 0:
             raise ValueError("El detalle del tipo es obligatorio")
-        
+
         from entities.Biblioteca import Biblioteca
 
-        biblioteca = (self.db.query(Biblioteca).filter(Biblioteca.id_biblioteca == id_biblioteca).first())
+        biblioteca = (
+            self.db.query(Biblioteca)
+            .filter(Biblioteca.id_biblioteca == id_biblioteca)
+            .first()
+        )
         if not biblioteca:
             raise ValueError("La biblioteca especificada no existe")
 
@@ -65,11 +76,11 @@ class ClienteCRUD:
             id_usuario_crea = admin.id_usuario
 
         cliente = Cliente(
-            nombre= nombre.strip(),
-            tipo_cliente= tipo_cliente.strip(),
-            detalle_tipo= detalle_tipo.strip(),
-            vetado= False,
-            id_biblioteca= id_biblioteca,
+            nombre=nombre.strip(),
+            tipo_cliente=tipo_cliente.strip(),
+            detalle_tipo=detalle_tipo.strip(),
+            vetado=False,
+            id_biblioteca=id_biblioteca,
             id_usuario_crea=id_usuario_crea,
         )
 
@@ -89,23 +100,23 @@ class ClienteCRUD:
         Returns:
             Optional[Cliente]: Cliente encontrado o None si no existe.
         """
-        return(self.db.query(Cliente).filter(Cliente.codigo == codigo, Cliente.id_biblioteca == id_biblioteca).first())
+        return (
+            self.db.query(Cliente)
+            .filter(Cliente.codigo == codigo, Cliente.id_biblioteca == id_biblioteca)
+            .first()
+        )
 
-    def obtener_clientes(self, id_biblioteca: UUID, skip: int = 0, limit: int = 100) -> List[Cliente]:
-        """
-        Obtiene una lista de clientes de una biblioteca con paginación.
+    def obtener_clientes(
+        self, id_biblioteca: UUID = None, skip: int = 0, limit: int = 100
+    ) -> List[Cliente]:
+        query = self.db.query(Cliente).options(selectinload(Cliente.biblioteca))
+        if id_biblioteca:
+            query = query.filter(Cliente.id_biblioteca == id_biblioteca)
+        return query.offset(skip).limit(limit).all()
 
-        Args:
-            id_biblioteca (UUID): Identificador único de la biblioteca.
-            skip (int, opcional): Número de registros a omitir. Por defecto 0.
-            limit (int, opcional): Número máximo de registros a retornar. Por defecto 100.
-
-        Returns:
-            List[Cliente]: Lista de clientes encontrados.
-        """
-        return (self.db.query(Cliente).filter(Cliente.id_biblioteca == id_biblioteca).all())
-
-    def obtener_clientes_por_nombre(self, nombre: str, id_biblioteca: UUID) -> List[Cliente]:
+    def obtener_clientes_por_nombre(
+        self, nombre: str, id_biblioteca: UUID
+    ) -> List[Cliente]:
         """
         Busca clientes por nombre en una biblioteca.
 
@@ -116,9 +127,15 @@ class ClienteCRUD:
         Returns:
             List[Cliente]: Lista de clientes con ese nombre.
         """
-        return (self.db.query(Cliente).filter(Cliente.nombre == nombre, Cliente.id_biblioteca == id_biblioteca).all())
+        return (
+            self.db.query(Cliente)
+            .filter(Cliente.nombre == nombre, Cliente.id_biblioteca == id_biblioteca)
+            .all()
+        )
 
-    def obtener_clientes_por_tipo_cliente(self, tipo_cliente: str, id_biblioteca: UUID) -> List[Cliente]:
+    def obtener_clientes_por_tipo_cliente(
+        self, tipo_cliente: str, id_biblioteca: UUID
+    ) -> List[Cliente]:
         """
         Busca clientes por tipo en una biblioteca.
 
@@ -129,9 +146,18 @@ class ClienteCRUD:
         Returns:
             List[Cliente]: Lista de clientes que coinciden con ese tipo.
         """
-        return self.db.query(Cliente).filter(Cliente.tipo_cliente == tipo_cliente, Cliente.id_biblioteca == id_biblioteca).all()
+        return (
+            self.db.query(Cliente)
+            .filter(
+                Cliente.tipo_cliente == tipo_cliente,
+                Cliente.id_biblioteca == id_biblioteca,
+            )
+            .all()
+        )
 
-    def obtener_clientes_por_detalle_tipo(self, detalle_tipo: str, id_biblioteca: UUID) -> List[Cliente]:
+    def obtener_clientes_por_detalle_tipo(
+        self, detalle_tipo: str, id_biblioteca: UUID
+    ) -> List[Cliente]:
         """
         Busca clientes por detalle del tipo en una biblioteca.
 
@@ -142,9 +168,18 @@ class ClienteCRUD:
         Returns:
             List[Cliente]: Lista de clientes que coinciden con ese detalle.
         """
-        return self.db.query(Cliente).filter(Cliente.detalle_tipo == detalle_tipo, Cliente.id_biblioteca == id_biblioteca).all()
-    
-    def obtener_clientes_por_vetado(self, vetado: bool, id_biblioteca: UUID) -> List[Cliente]:
+        return (
+            self.db.query(Cliente)
+            .filter(
+                Cliente.detalle_tipo == detalle_tipo,
+                Cliente.id_biblioteca == id_biblioteca,
+            )
+            .all()
+        )
+
+    def obtener_clientes_por_vetado(
+        self, vetado: bool, id_biblioteca: UUID
+    ) -> List[Cliente]:
         """
         Obtiene clientes según su estado de veto.
 
@@ -155,16 +190,22 @@ class ClienteCRUD:
         Returns:
             List[Cliente]: Lista de clientes según el estado de veto.
         """
-        return self.db.query(Cliente).filter(Cliente.vetado == vetado, Cliente.id_biblioteca == id_biblioteca).all()
+        return (
+            self.db.query(Cliente)
+            .filter(Cliente.vetado == vetado, Cliente.id_biblioteca == id_biblioteca)
+            .all()
+        )
 
-    def actualizar_cliente(self, codigo: UUID, id_biblioteca: UUID, id_usuario_edita: UUID  = None, **kwargs) -> Optional[Cliente]:
+    def actualizar_cliente(
+        self, codigo: UUID, id_biblioteca: UUID, id_usuario_edita: UUID = None, **kwargs
+    ) -> Optional[Cliente]:
         """
         Actualiza los datos de un cliente.
 
         Args:
             codigo (UUID): Identificador único del cliente.
             id_biblioteca (UUID): Identificador único de la biblioteca.
-            id_usuario_edita (UUID, opcional): Usuario que edita el cliente. 
+            id_usuario_edita (UUID, opcional): Usuario que edita el cliente.
                 Si no se especifica, se asigna un administrador por defecto.
             **kwargs: Campos a actualizar (ej. nombre, tipo_cliente, detalle_tipo, vetado).
 
@@ -175,11 +216,15 @@ class ClienteCRUD:
             ValueError: Si algún valor enviado es inválido.
         """
 
-        cliente = (self.db.query(Cliente).filter(Cliente.codigo == codigo, Cliente.id_biblioteca == id_biblioteca).first())
+        cliente = (
+            self.db.query(Cliente)
+            .filter(Cliente.codigo == codigo, Cliente.id_biblioteca == id_biblioteca)
+            .first()
+        )
 
         if not cliente:
             return None
-        
+
         if "nombre" in kwargs:
             nombre = kwargs["nombre"]
             if not nombre or len(nombre.strip()) == 0:
@@ -207,9 +252,12 @@ class ClienteCRUD:
 
         if id_usuario_edita is None:
             from entities.Usuario import Usuario
+
             admin = self.db.query(Usuario).filter(Usuario.es_admin == True).first()
             if not admin:
-                raise ValueError("No se encontró un usuario administrador para editar el cliente")
+                raise ValueError(
+                    "No se encontró un usuario administrador para editar el cliente"
+                )
             id_usuario_edita = admin.id_usuario
 
         cliente.id_usuario_edita = id_usuario_edita
@@ -222,7 +270,9 @@ class ClienteCRUD:
         self.db.refresh(cliente)
         return cliente
 
-    def actualizar_tipo_cliente(self, codigo: UUID, tipo_cliente: str, id_biblioteca: UUID) -> Optional[Cliente]:
+    def actualizar_tipo_cliente(
+        self, codigo: UUID, tipo_cliente: str, id_biblioteca: UUID
+    ) -> Optional[Cliente]:
         """
         Actualiza solo el tipo de un cliente.
 
@@ -242,10 +292,14 @@ class ClienteCRUD:
             raise ValueError("El tipo de cliente es obligatorio")
         if len(tipo_cliente) > 50:
             raise ValueError("El tipo de cliente no puede exceder 50 caracteres")
-    
-        return self.actualizar_cliente(codigo, id_biblioteca=id_biblioteca, tipo_cliente=tipo_cliente)
-    
-    def actualizar_detalle_tipo(self, codigo: UUID, detalle_tipo: str, id_biblioteca: UUID) -> Optional[Cliente]:
+
+        return self.actualizar_cliente(
+            codigo, id_biblioteca=id_biblioteca, tipo_cliente=tipo_cliente
+        )
+
+    def actualizar_detalle_tipo(
+        self, codigo: UUID, detalle_tipo: str, id_biblioteca: UUID
+    ) -> Optional[Cliente]:
         """
         Actualiza solo el detalle del tipo de un cliente.
 
@@ -262,10 +316,14 @@ class ClienteCRUD:
         """
         if detalle_tipo and len(detalle_tipo.strip()) > 100:
             raise ValueError("El detalle del tipo no puede exceder 100 caracteres")
-    
-        return self.actualizar_cliente(codigo, id_biblioteca=id_biblioteca, detalle_tipo=detalle_tipo)
-    
-    def actualizar_vetado(self, codigo: UUID, vetado: bool, id_biblioteca: UUID) -> Optional[Cliente]:
+
+        return self.actualizar_cliente(
+            codigo, id_biblioteca=id_biblioteca, detalle_tipo=detalle_tipo
+        )
+
+    def actualizar_vetado(
+        self, codigo: UUID, vetado: bool, id_biblioteca: UUID
+    ) -> Optional[Cliente]:
         """
         Actualiza el estado de veto de un cliente.
 
@@ -277,7 +335,9 @@ class ClienteCRUD:
         Returns:
             Optional[Cliente]: Cliente actualizado o None si no existe.
         """
-        return self.actualizar_cliente(codigo, id_biblioteca=id_biblioteca, vetado=vetado)
+        return self.actualizar_cliente(
+            codigo, id_biblioteca=id_biblioteca, vetado=vetado
+        )
 
     def eliminar_cliente(self, codigo: UUID, id_biblioteca: UUID) -> bool:
         """

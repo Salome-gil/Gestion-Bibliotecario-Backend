@@ -2,7 +2,7 @@ from typing import List, Optional
 from uuid import UUID
 from entities.Biblioteca import Biblioteca
 from entities.Sede import Sede
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import func
 
 
@@ -20,14 +20,16 @@ class BibliotecaCRUD:
         """
         self.db = db
 
-    def crear_biblioteca(self, nombre: str, id_sede: UUID, id_usuario_crea: UUID = None) -> Biblioteca:
+    def crear_biblioteca(
+        self, nombre: str, id_sede: UUID, id_usuario_crea: UUID = None
+    ) -> Biblioteca:
         """
         Crea una nueva biblioteca en la base de datos.
 
         Args:
             nombre (str): Nombre de la biblioteca.
             id_sede (UUID): Identificador único de la sede asociada.
-            id_usuario_crea (UUID, opcional): Usuario que crea la biblioteca. 
+            id_usuario_crea (UUID, opcional): Usuario que crea la biblioteca.
                 Si no se especifica, se asigna un administrador por defecto.
 
         Returns:
@@ -41,13 +43,22 @@ class BibliotecaCRUD:
             raise ValueError("El nombre de la biblioteca es obligatorio")
         if len(nombre) > 100:
             raise ValueError("El nombre no puede exceder 100 caracteres")
-        
+
         sede = self.db.query(Sede).filter(Sede.id_sede == id_sede).first()
         if not sede:
             raise ValueError("La sede especificada no existe")
-        
+
+        existe = (
+            self.db.query(Biblioteca)
+            .filter(func.lower(Biblioteca.nombre) == nombre.strip().lower())
+            .first()
+        )
+        if existe:
+            raise ValueError("Ya existe una biblioteca con este nombre")
+
         if id_usuario_crea is None:
             from entities.Usuario import Usuario
+
             admin = self.db.query(Usuario).filter(Usuario.es_admin == True).first()
             if not admin:
                 raise ValueError(
@@ -55,11 +66,9 @@ class BibliotecaCRUD:
                 )
             id_usuario_crea = admin.id_usuario
 
-
         biblioteca = Biblioteca(
-            nombre=nombre.strip(), 
-            id_sede=id_sede,
-            id_usuario_crea=id_usuario_crea)
+            nombre=nombre.strip(), id_sede=id_sede, id_usuario_crea=id_usuario_crea
+        )
 
         self.db.add(biblioteca)
         self.db.commit()
@@ -76,7 +85,11 @@ class BibliotecaCRUD:
         Returns:
             Optional[Biblioteca]: La biblioteca encontrada o None si no existe.
         """
-        return self.db.query(Biblioteca).filter(Biblioteca.id_biblioteca == id_biblioteca).first()
+        return (
+            self.db.query(Biblioteca)
+            .filter(Biblioteca.id_biblioteca == id_biblioteca)
+            .first()
+        )
 
     def obtener_bibliotecas(self, skip: int = 0, limit: int = 100) -> List[Biblioteca]:
         """
@@ -89,7 +102,13 @@ class BibliotecaCRUD:
         Returns:
             List[Biblioteca]: Lista de bibliotecas encontradas.
         """
-        return self.db.query(Biblioteca).offset(skip).limit(limit).all()
+        return (
+            self.db.query(Biblioteca)
+            .options(selectinload(Biblioteca.sede))  # <--- importante
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
 
     def obtener_biblioteca_por_nombre(self, nombre: str) -> Optional[Biblioteca]:
         """
@@ -101,7 +120,11 @@ class BibliotecaCRUD:
         Returns:
             Optional[Biblioteca]: Biblioteca encontrada o None si no existe.
         """
-        return (self.db.query(Biblioteca).filter(func.lower(Biblioteca.nombre) == nombre.strip().lower()).first())
+        return (
+            self.db.query(Biblioteca)
+            .filter(func.lower(Biblioteca.nombre) == nombre.strip().lower())
+            .first()
+        )
 
     def obtener_biblioteca_por_sede(self, id_sede: UUID):
         """
@@ -113,15 +136,17 @@ class BibliotecaCRUD:
         Returns:
             Optional[Biblioteca]: Biblioteca encontrada o None si no existe.
         """
-        return self.db.query(Biblioteca).filter_by(id_sede=id_sede).first()
+        return self.db.query(Biblioteca).filter(Biblioteca.id_sede == id_sede).all()
 
-    def actualizar_biblioteca(self, id_biblioteca: UUID, id_usuario_edita: UUID = None, **kwargs) -> Optional[Biblioteca]:
+    def actualizar_biblioteca(
+        self, id_biblioteca: UUID, id_usuario_edita: UUID = None, **kwargs
+    ) -> Optional[Biblioteca]:
         """
         Actualiza los datos de una biblioteca existente.
 
         Args:
             id_biblioteca (UUID): Identificador único de la biblioteca.
-            id_usuario_edita (UUID, opcional): Usuario que edita la biblioteca. 
+            id_usuario_edita (UUID, opcional): Usuario que edita la biblioteca.
                 Si no se especifica, se asigna un administrador por defecto.
             **kwargs: Campos a actualizar (ej. nombre, id_sede).
 
@@ -134,7 +159,7 @@ class BibliotecaCRUD:
         biblioteca = self.obtener_biblioteca(id_biblioteca)
         if not biblioteca:
             return None
-        
+
         if "nombre" in kwargs:
             nombre = kwargs["nombre"]
             if not nombre or len(nombre.strip()) == 0:
@@ -148,12 +173,15 @@ class BibliotecaCRUD:
             sede = self.db.query(Sede).filter(Sede.id_sede == id_sede).first()
             if not sede:
                 raise ValueError("La sede especificada no existe")
-            
+
         if id_usuario_edita is None:
             from entities.Usuario import Usuario
+
             admin = self.db.query(Usuario).filter(Usuario.es_admin == True).first()
             if not admin:
-                raise ValueError("No se encontró un usuario administrador para editar la biblioteca")
+                raise ValueError(
+                    "No se encontró un usuario administrador para editar la biblioteca"
+                )
             id_usuario_edita = admin.id_usuario
 
         biblioteca.id_usuario_edita = id_usuario_edita

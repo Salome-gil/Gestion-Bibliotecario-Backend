@@ -148,5 +148,5 @@ async def eliminar_sede(id_sede: UUID, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error al eliminar la sasedencion: {str(e)}",
+            detail=f"Error al eliminar la sede: {str(e)}",
         )
