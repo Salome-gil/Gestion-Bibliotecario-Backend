@@ -36,26 +36,6 @@ async def obtener_usuarios(
         )
 
 
-@router.get("/{usuario_id}", response_model=UsuarioResponse)
-async def obtener_usuario(id_usuario: UUID, db: Session = Depends(get_db)):
-    """Obtener un usuario por ID."""
-    try:
-        usuario_crud = UsuarioCRUD(db)
-        usuario = usuario_crud.obtener_usuario(id_usuario)
-        if not usuario:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado"
-            )
-        return usuario
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error al obtener usuario: {str(e)}",
-        )
-
-
 @router.get("/email/{email}", response_model=UsuarioResponse)
 async def obtener_usuario_por_email(email: str, db: Session = Depends(get_db)):
     """Obtener un usuario por email."""
@@ -84,6 +64,26 @@ async def obtener_usuario_por_nombre_usuario(
     try:
         usuario_crud = UsuarioCRUD(db)
         usuario = usuario_crud.obtener_usuario_por_nombre_usuario(nombre_usuario)
+        if not usuario:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado"
+            )
+        return usuario
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al obtener usuario: {str(e)}",
+        )
+
+
+@router.get("/{usuario_id}", response_model=UsuarioResponse)
+async def obtener_usuario(usuario_id: UUID, db: Session = Depends(get_db)):
+    """Obtener un usuario por ID."""
+    try:
+        usuario_crud = UsuarioCRUD(db)
+        usuario = usuario_crud.obtener_usuario(usuario_id)
         if not usuario:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado"
@@ -277,5 +277,3 @@ async def verificar_es_admin(usuario_id: UUID, db: Session = Depends(get_db)):
             detail=f"Error al verificar administrador: {str(e)}",
         )
 
-
-# body, string_parameter, path parameter
