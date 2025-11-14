@@ -1,5 +1,5 @@
 """
-API de Biblioteca - Endpoints para gestión de biblioteca
+API de Biblioteca - Endpoints para gestión de bibliotecas
 """
 
 from typing import List
@@ -8,7 +8,7 @@ from uuid import UUID
 from crud.Biblioteca_crud import BibliotecaCRUD
 from database.config import get_db
 from fastapi import APIRouter, Depends, HTTPException, status
-from schemas import BibliotecaCreate, BibliotecaResponse, BibliotecaUpdate, RespuestaAPI
+from schemas import BibliotecaCreate, BibliotecaUpdate, BibliotecaResponse, RespuestaAPI
 from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/bibliotecas", tags=["bibliotecas"])
@@ -30,15 +30,13 @@ async def obtener_bibliotecas(
         List[BibliotecaResponse]: Lista de bibliotecas disponibles.
     """
     try:
-        biblioteca_crud = BibliotecaCRUD(db)
-        bibliotecas = biblioteca_crud.obtener_bibliotecas(skip=skip, limit=limit)
+        crud = BibliotecaCRUD(db)
+        bibliotecas = crud.obtener_bibliotecas(skip=skip, limit=limit)
         return bibliotecas
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error al obtener bibliotecas: {str(e)}",
+            status_code=500, detail=f"Error al obtener bibliotecas: {str(e)}"
         )
-
 
 @router.get("/{id_biblioteca}", response_model=BibliotecaResponse)
 async def obtener_biblioteca(id_biblioteca: UUID, db: Session = Depends(get_db)):
@@ -68,7 +66,6 @@ async def obtener_biblioteca(id_biblioteca: UUID, db: Session = Depends(get_db))
             detail=f"Error al obtener biblioteca: {str(e)}",
         )
 
-
 @router.get("/nombre/{nombre}", response_model=BibliotecaResponse)
 async def obtener_biblioteca_por_nombre(nombre: str, db: Session = Depends(get_db)):
     """
@@ -96,8 +93,8 @@ async def obtener_biblioteca_por_nombre(nombre: str, db: Session = Depends(get_d
         )
 
 
-@router.get("/sede/{id_sede}", response_model=BibliotecaResponse)
-async def obtener_biblioteca_por_sede(id_sede: UUID, db: Session = Depends(get_db)):
+@router.get("/sede/{id_sede}", response_model=List[BibliotecaResponse])
+async def obtener_bibliotecas_por_sede(id_sede: UUID, db: Session = Depends(get_db)):
     """
     Obtener una biblioteca asociada a una sede.
 
@@ -109,17 +106,12 @@ async def obtener_biblioteca_por_sede(id_sede: UUID, db: Session = Depends(get_d
         BibliotecaResponse: Información de la biblioteca encontrada.
     """
     try:
-        biblioteca_crud = BibliotecaCRUD(db)
-        biblioteca = biblioteca_crud.obtener_biblioteca_por_sede(id_sede)
-        if not biblioteca:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Biblioteca no encontrada"
-            )
-        return biblioteca
+        crud = BibliotecaCRUD(db)
+        bibliotecas = crud.obtener_biblioteca_por_sede(id_sede)
+        return bibliotecas
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error al obtener biblioteca por sede: {str(e)}",
+            status_code=500, detail=f"Error al obtener bibliotecas por sede: {str(e)}"
         )
 
 
@@ -140,17 +132,17 @@ async def crear_biblioteca(
         BibliotecaResponse: Información de la biblioteca creada.
     """
     try:
-        biblioteca_crud = BibliotecaCRUD(db)
-        biblioteca = biblioteca_crud.crear_biblioteca(
-            nombre=biblioteca_data.nombre, id_sede=biblioteca_data.id_sede
+        crud = BibliotecaCRUD(db)
+        biblioteca = crud.crear_biblioteca(
+            nombre=biblioteca_data.nombre, 
+            id_sede=biblioteca_data.id_sede
         )
         return biblioteca
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error al crear biblioteca: {str(e)}",
+            status_code=500, detail=f"Error al crear biblioteca: {str(e)}"
         )
 
 
@@ -172,34 +164,21 @@ async def actualizar_biblioteca(
         BibliotecaResponse: Biblioteca con los datos actualizados.
     """
     try:
-        biblioteca_crud = BibliotecaCRUD(db)
-
-        biblioteca_existente = biblioteca_crud.obtener_biblioteca(id_biblioteca)
-        if not biblioteca_existente:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Biblioteca no encontrada"
-            )
-
+        crud = BibliotecaCRUD(db)
         campos_actualizacion = {
             k: v for k, v in biblioteca_data.dict().items() if v is not None
         }
-
-        if not campos_actualizacion:
-            return biblioteca_existente
-
-        biblioteca_actualizada = biblioteca_crud.actualizar_biblioteca(
+        biblioteca_actualizada = crud.actualizar_biblioteca(
             id_biblioteca, **campos_actualizacion
         )
+        if not biblioteca_actualizada:
+            raise HTTPException(status_code=404, detail="Biblioteca no encontrada")
         return biblioteca_actualizada
-
-    except HTTPException:
-        raise
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error al actualizar biblioteca: {str(e)}",
+            status_code=500, detail=f"Error al actualizar biblioteca: {str(e)}"
         )
 
 

@@ -1,7 +1,7 @@
 from typing import List, Optional
 from uuid import UUID
 from entities.Categoria import Categoria
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 
 class CategoriaCRUD:
@@ -18,7 +18,13 @@ class CategoriaCRUD:
         """
         self.db = db
 
-    def crear_categoria(self, id_biblioteca: UUID, nombre: str, descripcion: str, id_usuario_crea: UUID = None) -> Categoria:
+    def crear_categoria(
+        self,
+        id_biblioteca: UUID,
+        nombre: str,
+        descripcion: str,
+        id_usuario_crea: UUID = None,
+    ) -> Categoria:
         """
         Crea una nueva categoría en una biblioteca.
 
@@ -26,7 +32,7 @@ class CategoriaCRUD:
             id_biblioteca (UUID): Identificador único de la biblioteca.
             nombre (str): Nombre de la categoría.
             descripcion (str): Descripción de la categoría.
-            id_usuario_crea (UUID, opcional): Usuario que crea la categoría. 
+            id_usuario_crea (UUID, opcional): Usuario que crea la categoría.
                 Si no se especifica, se asigna un administrador por defecto.
 
         Returns:
@@ -43,12 +49,15 @@ class CategoriaCRUD:
 
         if descripcion and len(descripcion) > 250:
             raise ValueError("La descripción no puede exceder 250 caracteres")
-    
+
         if id_usuario_crea is None:
             from entities.Usuario import Usuario
+
             admin = self.db.query(Usuario).filter(Usuario.es_admin == True).first()
             if not admin:
-                raise ValueError("No se encontró un usuario administrador para crear la categoría")
+                raise ValueError(
+                    "No se encontró un usuario administrador para crear la categoría"
+                )
             id_usuario_crea = admin.id_usuario
 
         categoria = Categoria(
@@ -63,7 +72,11 @@ class CategoriaCRUD:
         self.db.refresh(categoria)
         return categoria
 
-    def obtener_categoria(self, id_categoria: UUID, id_biblioteca: UUID,) -> Optional[Categoria]:
+    def obtener_categoria(
+        self,
+        id_categoria: UUID,
+        id_biblioteca: UUID,
+    ) -> Optional[Categoria]:
         """
         Obtiene una categoría específica por su ID y biblioteca.
 
@@ -74,9 +87,18 @@ class CategoriaCRUD:
         Returns:
             Optional[Categoria]: Categoría encontrada o None si no existe.
         """
-        return(self.db.query(Categoria).filter(Categoria.id_categoria == id_categoria, Categoria.id_biblioteca == id_biblioteca).first())
+        return (
+            self.db.query(Categoria)
+            .filter(
+                Categoria.id_categoria == id_categoria,
+                Categoria.id_biblioteca == id_biblioteca,
+            )
+            .first()
+        )
 
-    def obtener_categorias(self, id_biblioteca: UUID, skip: int = 0, limit: int = 100) -> List[Categoria]:
+    def obtener_categorias(
+        self, id_biblioteca: UUID, skip: int = 0, limit: int = 100
+    ) -> List[Categoria]:
         """
         Obtiene un listado de categorías de una biblioteca con paginación.
 
@@ -88,9 +110,18 @@ class CategoriaCRUD:
         Returns:
             List[Categoria]: Lista de categorías encontradas.
         """
-        return self.db.query(Categoria).filter(Categoria.id_biblioteca == id_biblioteca).offset(skip).limit(limit).all()
+        return (
+            self.db.query(Categoria)
+            .options(selectinload(Categoria.biblioteca))
+            .filter(Categoria.id_biblioteca == id_biblioteca)
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
 
-    def obtener_categoria_por_nombre(self, nombre: str, id_biblioteca: UUID) -> Optional[Categoria]:
+    def obtener_categoria_por_nombre(
+        self, nombre: str, id_biblioteca: UUID
+    ) -> Optional[Categoria]:
         """
         Busca una categoría por su nombre en una biblioteca.
 
@@ -101,16 +132,28 @@ class CategoriaCRUD:
         Returns:
             Optional[Categoria]: Categoría encontrada o None si no existe.
         """
-        return self.db.query(Categoria).filter(Categoria.nombre == nombre, Categoria.id_biblioteca == id_biblioteca).first()
+        return (
+            self.db.query(Categoria)
+            .filter(
+                Categoria.nombre == nombre, Categoria.id_biblioteca == id_biblioteca
+            )
+            .first()
+        )
 
-    def actualizar_categoria(self, id_categoria: UUID, id_biblioteca: UUID, id_usuario_edita: UUID = None, **kwargs) -> Optional[Categoria]:
+    def actualizar_categoria(
+        self,
+        id_categoria: UUID,
+        id_biblioteca: UUID,
+        id_usuario_edita: UUID = None,
+        **kwargs
+    ) -> Optional[Categoria]:
         """
         Actualiza los datos de una categoría existente.
 
         Args:
             id_categoria (UUID): Identificador único de la categoría.
             id_biblioteca (UUID): Identificador único de la biblioteca.
-            id_usuario_edita (UUID, opcional): Usuario que edita la categoría. 
+            id_usuario_edita (UUID, opcional): Usuario que edita la categoría.
                 Si no se especifica, se asigna un administrador por defecto.
             **kwargs: Campos a actualizar (ej. nombre, descripcion).
 
@@ -123,12 +166,15 @@ class CategoriaCRUD:
         categoria = self.obtener_categoria(id_categoria, id_biblioteca)
         if not categoria:
             return None
-        
+
         if id_usuario_edita is None:
             from entities.Usuario import Usuario
+
             admin = self.db.query(Usuario).filter(Usuario.es_admin == True).first()
             if not admin:
-                raise ValueError("No se encontró un usuario administrador para editar la categoría")
+                raise ValueError(
+                    "No se encontró un usuario administrador para editar la categoría"
+                )
             id_usuario_edita = admin.id_usuario
 
         categoria.id_usuario_edita = id_usuario_edita

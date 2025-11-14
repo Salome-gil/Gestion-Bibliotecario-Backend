@@ -2,7 +2,7 @@ from datetime import date
 from uuid import UUID
 from typing import List, Optional
 from entities.Sancion import Sancion
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 
 class SancionCRUD:
@@ -19,7 +19,15 @@ class SancionCRUD:
         """
         self.db = db
 
-    def crear_sancion(self, motivo: str, fecha_sancion: date, monto: float, cod_cliente: UUID, id_biblioteca: UUID, id_usuario_crea: UUID = None) -> Sancion:
+    def crear_sancion(
+        self,
+        motivo: str,
+        fecha_sancion: date,
+        monto: float,
+        cod_cliente: UUID,
+        id_biblioteca: UUID,
+        id_usuario_crea: UUID = None,
+    ) -> Sancion:
         """
         Crea una nueva sanción en la base de datos.
 
@@ -29,7 +37,7 @@ class SancionCRUD:
             monto (float): Monto de la sanción, debe ser positivo.
             cod_cliente (UUID): Identificador único del cliente sancionado.
             id_biblioteca (UUID): Identificador único de la biblioteca.
-            id_usuario_crea (UUID, opcional): Identificador del usuario que crea la sanción. 
+            id_usuario_crea (UUID, opcional): Identificador del usuario que crea la sanción.
                                               Si no se proporciona, se asigna un administrador.
 
         Returns:
@@ -44,7 +52,9 @@ class SancionCRUD:
             raise ValueError("La fecha de la sanción es obligatoria")
 
         if monto is None or monto < 0:
-            raise ValueError("El monto de la sanción es obligatorio y debe ser positivo")
+            raise ValueError(
+                "El monto de la sanción es obligatorio y debe ser positivo"
+            )
 
         if not cod_cliente:
             raise ValueError("El cliente es obligatorio")
@@ -53,18 +63,21 @@ class SancionCRUD:
 
         if id_usuario_crea is None:
             from entities.Usuario import Usuario
+
             admin = self.db.query(Usuario).filter(Usuario.es_admin == True).first()
             if not admin:
-                raise ValueError("No se encontró un usuario administrador para crear la sanción")
+                raise ValueError(
+                    "No se encontró un usuario administrador para crear la sanción"
+                )
             id_usuario_crea = admin.id_usuario
 
         sancion = Sancion(
-            motivo= motivo.strip(),
-            fecha_sancion= fecha_sancion,
-            monto= monto,
-            cod_cliente= cod_cliente,
+            motivo=motivo.strip(),
+            fecha_sancion=fecha_sancion,
+            monto=monto,
+            cod_cliente=cod_cliente,
             id_biblioteca=id_biblioteca,
-            id_usuario_crea= id_usuario_crea,
+            id_usuario_crea=id_usuario_crea,
         )
 
         self.db.add(sancion)
@@ -72,7 +85,9 @@ class SancionCRUD:
         self.db.refresh(sancion)
         return sancion
 
-    def obtener_sancion(self, id_sancion: UUID, id_biblioteca: UUID) -> Optional[Sancion]:
+    def obtener_sancion(
+        self, id_sancion: UUID, id_biblioteca: UUID
+    ) -> Optional[Sancion]:
         """
         Obtiene una sanción específica por su ID.
 
@@ -83,23 +98,29 @@ class SancionCRUD:
         Returns:
             Optional[Sancion]: Objeto de la sanción si existe, None en caso contrario.
         """
-        return self.db.query(Sancion).filter(Sancion.id_sancion == id_sancion, Sancion.id_biblioteca == id_biblioteca).first()
+        return (
+            self.db.query(Sancion)
+            .filter(
+                Sancion.id_sancion == id_sancion, Sancion.id_biblioteca == id_biblioteca
+            )
+            .first()
+        )
 
-    def obtener_sanciones(self, id_biblioteca: UUID, skip: int = 0, limit: int = 100) -> List[Sancion]:
-        """
-        Obtiene una lista de sanciones de una biblioteca con paginación.
+    def obtener_sanciones(
+        self, id_biblioteca: UUID, skip: int = 0, limit: int = 100
+    ) -> List[Sancion]:
+        return (
+            self.db.query(Sancion)
+            .options(selectinload(Sancion.biblioteca), selectinload(Sancion.cliente))
+            .filter(Sancion.id_biblioteca == id_biblioteca)
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
 
-        Args:
-            id_biblioteca (UUID): Identificador único de la biblioteca.
-            skip (int, opcional): Número de registros a omitir. Por defecto 0.
-            limit (int, opcional): Número máximo de registros a retornar. Por defecto 100.
-
-        Returns:
-            List[Sancion]: Lista de sanciones encontradas.
-        """
-        return self.db.query(Sancion).filter(Sancion.id_biblioteca == id_biblioteca).offset(skip).limit(limit).all()
-
-    def obtener_sanciones_por_motivo(self, motivo: str, id_biblioteca: UUID) -> List[Sancion]:
+    def obtener_sanciones_por_motivo(
+        self, motivo: str, id_biblioteca: UUID
+    ) -> List[Sancion]:
         """
         Obtiene todas las sanciones con un motivo específico.
 
@@ -110,9 +131,15 @@ class SancionCRUD:
         Returns:
             List[Sancion]: Lista de sanciones con el motivo indicado.
         """
-        return self.db.query(Sancion).filter(Sancion.motivo == motivo, Sancion.id_biblioteca == id_biblioteca).all()
-    
-    def obtener_sanciones_por_fecha_sancion(self, fecha_sancion: date, id_biblioteca: UUID) -> List[Sancion]:
+        return (
+            self.db.query(Sancion)
+            .filter(Sancion.motivo == motivo, Sancion.id_biblioteca == id_biblioteca)
+            .all()
+        )
+
+    def obtener_sanciones_por_fecha_sancion(
+        self, fecha_sancion: date, id_biblioteca: UUID
+    ) -> List[Sancion]:
         """
         Obtiene todas las sanciones aplicadas en una fecha específica.
 
@@ -123,9 +150,18 @@ class SancionCRUD:
         Returns:
             List[Sancion]: Lista de sanciones en la fecha indicada.
         """
-        return self.db.query(Sancion).filter(Sancion.fecha_sancion == fecha_sancion, Sancion.id_biblioteca == id_biblioteca).all()
-    
-    def obtener_sanciones_por_monto(self, monto: float, id_biblioteca: UUID) -> List[Sancion]:
+        return (
+            self.db.query(Sancion)
+            .filter(
+                Sancion.fecha_sancion == fecha_sancion,
+                Sancion.id_biblioteca == id_biblioteca,
+            )
+            .all()
+        )
+
+    def obtener_sanciones_por_monto(
+        self, monto: float, id_biblioteca: UUID
+    ) -> List[Sancion]:
         """
         Obtiene todas las sanciones con un monto específico.
 
@@ -136,9 +172,15 @@ class SancionCRUD:
         Returns:
             List[Sancion]: Lista de sanciones con el monto indicado.
         """
-        return self.db.query(Sancion).filter(Sancion.monto == monto, Sancion.id_biblioteca == id_biblioteca).all()
-    
-    def obtener_sanciones_por_cliente(self, cod_cliente: UUID, id_biblioteca: UUID) -> List[Sancion]:
+        return (
+            self.db.query(Sancion)
+            .filter(Sancion.monto == monto, Sancion.id_biblioteca == id_biblioteca)
+            .all()
+        )
+
+    def obtener_sanciones_por_cliente(
+        self, cod_cliente: UUID, id_biblioteca: UUID
+    ) -> List[Sancion]:
         """
         Obtiene todas las sanciones aplicadas a un cliente específico.
 
@@ -149,9 +191,22 @@ class SancionCRUD:
         Returns:
             List[Sancion]: Lista de sanciones asociadas al cliente.
         """
-        return self.db.query(Sancion).filter(Sancion.cod_cliente == cod_cliente, Sancion.id_biblioteca == id_biblioteca).all()
+        return (
+            self.db.query(Sancion)
+            .filter(
+                Sancion.cod_cliente == cod_cliente,
+                Sancion.id_biblioteca == id_biblioteca,
+            )
+            .all()
+        )
 
-    def actualizar_sancion(self, id_sancion: UUID, id_biblioteca: UUID, id_usuario_edita: UUID = None, **kwargs) -> Optional[Sancion]:
+    def actualizar_sancion(
+        self,
+        id_sancion: UUID,
+        id_biblioteca: UUID,
+        id_usuario_edita: UUID = None,
+        **kwargs
+    ) -> Optional[Sancion]:
         """
         Actualiza los datos de una sanción existente.
 
@@ -191,9 +246,12 @@ class SancionCRUD:
 
         if id_usuario_edita is None:
             from entities.Usuario import Usuario
+
             admin = self.db.query(Usuario).filter(Usuario.es_admin == True).first()
             if not admin:
-                raise ValueError("No se encontró un usuario administrador para editar la sanción")
+                raise ValueError(
+                    "No se encontró un usuario administrador para editar la sanción"
+                )
             id_usuario_edita = admin.id_usuario
 
         sancion.id_usuario_edita = id_usuario_edita
@@ -205,7 +263,7 @@ class SancionCRUD:
         self.db.commit()
         self.db.refresh(sancion)
         return sancion
-    
+
     def eliminar_sancion(self, id_sancion: UUID, id_biblioteca: UUID) -> bool:
         """
         Elimina una sanción de la base de datos.

@@ -5,9 +5,10 @@ from uuid import UUID
 from pydantic import BaseModel, EmailStr, Field
 
 
-"""-------------------------------------------
-esquema de api para BIBLIOTECA
--------------------------------------------"""
+# -------------------------------------------
+# BIBLIOTECA
+# -------------------------------------------
+
 
 class BibliotecaBase(BaseModel):
     nombre: str
@@ -23,18 +24,24 @@ class BibliotecaUpdate(BaseModel):
     id_sede: Optional[UUID] = None
 
 
+class SedeResponse(BaseModel):
+    id_sede: UUID
+    nombre: Optional[str] = None
+
+
 class BibliotecaResponse(BibliotecaBase):
     id_biblioteca: UUID
     fecha_creacion: datetime
     fecha_edicion: Optional[datetime] = None
+    sede: Optional[SedeResponse] = None
 
     class Config:
         from_attributes = True
 
 
-"""-------------------------------------------
-esquema de api para CATEGORIA
--------------------------------------------"""
+# -------------------------------------------
+# CATEGORIA
+# -------------------------------------------
 
 
 class CategoriaBase(BaseModel):
@@ -53,19 +60,25 @@ class CategoriaUpdate(BaseModel):
     id_biblioteca: Optional[UUID] = None
 
 
+class BibliotecaSimpleResponse(BaseModel):
+    id_biblioteca: UUID
+    nombre: str
+
+
 class CategoriaResponse(CategoriaBase):
     id_categoria: UUID
     fecha_creacion: datetime
     fecha_edicion: Optional[datetime] = None
+    biblioteca: Optional[BibliotecaSimpleResponse] = None
 
     class Config:
         from_attributes = True
 
 
-""" -------------------------------------------
-esquema de api para CLIENTE
--------------------------------------------
-"""
+# -------------------------------------------
+# CLIENTE
+# -------------------------------------------
+
 
 class ClienteBase(BaseModel):
     nombre: str
@@ -87,18 +100,24 @@ class ClienteUpdate(BaseModel):
     id_biblioteca: Optional[UUID] = None
 
 
+class BibliotecaSimpleResponse(BaseModel):
+    id_biblioteca: UUID
+    nombre: str
+
+
 class ClienteResponse(ClienteBase):
     codigo: UUID
     fecha_creacion: datetime
     fecha_edicion: Optional[datetime] = None
+    biblioteca: Optional[BibliotecaSimpleResponse] = None
 
     class Config:
         from_attributes = True
 
 
-""" -------------------------------------------
-esquema de api para MATERIAL BIBLIOGRAFICO
--------------------------------------------"""
+# -------------------------------------------
+# MATERIAL BIBLIOGRAFICO
+# -------------------------------------------
 
 
 class Material_BibliograficoBase(BaseModel):
@@ -123,18 +142,30 @@ class Material_BibliograficoUpdate(BaseModel):
     id_sede: Optional[UUID] = None
 
 
+class BibliotecaSimpleResponse(BaseModel):
+    id_biblioteca: UUID
+    nombre: str
+
+
+class CategoriaSimpleResponse(BaseModel):
+    id_categoria: UUID
+    nombre: str
+
+
 class Material_BibliograficoResponse(Material_BibliograficoBase):
     id_material: UUID
     fecha_creacion: datetime
     fecha_edicion: Optional[datetime] = None
+    biblioteca: Optional[BibliotecaSimpleResponse] = None
+    categoria: Optional[CategoriaSimpleResponse] = None
 
     class Config:
         from_attributes = True
 
 
-"""-------------------------------------------
-esquema de api para PRESTAMO
--------------------------------------------"""
+# -------------------------------------------
+# PRESTAMO
+# -------------------------------------------
 class PrestamoBase(BaseModel):
     fecha_prestamo: date
     fecha_entrega: date
@@ -155,18 +186,33 @@ class PrestamoUpdate(BaseModel):
     id_biblioteca: Optional[UUID] = None
 
 
+class BibliotecaResponseMini(BaseModel):
+    nombre: str
+
+
+class MaterialResponseMini(BaseModel):
+    titulo: str
+
+
+class ClienteResponseMini(BaseModel):
+    nombre: str
+
+
 class PrestamoResponse(PrestamoBase):
     id: UUID
     fecha_creacion: datetime
     fecha_edicion: Optional[datetime] = None
+    biblioteca: Optional[BibliotecaResponseMini] = None
+    material: Optional[MaterialResponseMini] = None
+    cliente: Optional[ClienteResponseMini] = None
 
     class Config:
         from_attributes = True
 
 
-"""-------------------------------------------
-esquema de api para RESERVA
--------------------------------------------"""
+# -------------------------------------------
+# RESERVA
+# -------------------------------------------
 class ReservaBase(BaseModel):
     fecha_reserva: date
     estado: str
@@ -187,21 +233,36 @@ class ReservaUpdate(BaseModel):
     id_biblioteca: Optional[UUID] = None
 
 
+class BibliotecaResponseMini(BaseModel):
+    nombre: str
+
+
+class ClienteResponseMini(BaseModel):
+    nombre: str
+
+
+class MaterialResponseMini(BaseModel):
+    titulo: str
+
+
 class ReservaResponse(ReservaBase):
     id_reserva: UUID
     fecha_creacion: datetime
     fecha_edicion: Optional[datetime] = None
+    biblioteca: Optional[BibliotecaResponseMini] = None
+    cliente: Optional[ClienteResponseMini] = None
+    material: Optional[MaterialResponseMini] = None
 
     class Config:
         from_attributes = True
 
 
-"""-------------------------------------------
-esquema de api para SANCION
--------------------------------------------"""
+# -------------------------------------------
+# SANCION
+# -------------------------------------------
 class SancionBase(BaseModel):
     fecha_sancion: date
-    monto: int
+    monto: float
     motivo: str
     cod_cliente: UUID
     id_biblioteca: UUID
@@ -212,23 +273,33 @@ class SancionCreate(SancionBase):
 
 
 class SancionUpdate(BaseModel):
-    fecha_sancion: Optional[datetime] = None
+    fecha_sancion: Optional[date] = None
     motivo: Optional[str] = None
-    monto: Optional[int] = None
+    monto: Optional[float] = None
+
+
+class BibliotecaResponseMini(BaseModel):
+    nombre: str
+
+
+class ClienteResponseMini(BaseModel):
+    nombre: str
 
 
 class SancionResponse(SancionBase):
     id_sancion: UUID
     fecha_creacion: datetime
     fecha_edicion: Optional[datetime] = None
+    biblioteca: Optional[BibliotecaResponseMini] = None
+    cliente: Optional[ClienteResponseMini] = None
 
     class Config:
         from_attributes = True
 
 
-"""-------------------------------------------
-esquema de api para SEDE
--------------------------------------------"""
+# -------------------------------------------
+# SEDE
+# -------------------------------------------
 class SedeBase(BaseModel):
     nombre: str
     direccion: str
@@ -252,9 +323,9 @@ class SedeResponse(SedeBase):
         from_attributes = True
 
 
-"""-------------------------------------------
-esquema de api para USUARIO
--------------------------------------------"""
+# -------------------------------------------
+# USUARIO
+# -------------------------------------------
 class UsuarioBase(BaseModel):
     nombre: str
     nombre_usuario: str
@@ -296,7 +367,7 @@ class CambioContraseña(BaseModel):
     nueva_contraseña: str
 
 
-"""Modelos de respuesta con relaciones"""
+# Modelos de respuesta con relaciones
 class CategoriaConMateriales(CategoriaResponse):
     materiales: List[Material_BibliograficoResponse] = []
 
@@ -318,32 +389,32 @@ class MaterialConRelaciones(Material_BibliograficoResponse):
     reservas: List[ReservaResponse] = []
 
 
-""" Relaciones para Préstamo"""
+# Relaciones para Préstamo
 class PrestamoConRelaciones(PrestamoResponse):
     cliente: ClienteResponse
     material: Material_BibliograficoResponse
     usuario: UsuarioResponse
 
 
-"""Relaciones para Reserva"""
+# Relaciones para Reserva
 class ReservaConRelaciones(ReservaResponse):
     cliente: ClienteResponse
     material: Material_BibliograficoResponse
     usuario: UsuarioResponse
 
 
-""" Relaciones para Sanción"""
+# Relaciones para Sanción
 class SancionConRelaciones(SancionResponse):
     cliente: ClienteResponse
     usuario: UsuarioResponse
 
 
-"""Relaciones para Sede"""
+# Relaciones para Sede
 class SedeConRelaciones(SedeResponse):
     bibliotecas: List[BibliotecaResponse] = []
 
 
-"""Ampliación de Usuario con todas las acciones posibles"""
+# Ampliación de Usuario con todas las acciones posibles
 class UsuarioConAcciones(UsuarioResponse):
     bibliotecas_creadas: List[BibliotecaResponse] = []
     categorias_creadas: List[CategoriaResponse] = []
@@ -354,7 +425,7 @@ class UsuarioConAcciones(UsuarioResponse):
     sanciones_registradas: List[SancionResponse] = []
 
 
-"""Modelos de respuesta para la API"""
+# Modelos de respuesta para la API
 
 
 class RespuestaAPI(BaseModel):

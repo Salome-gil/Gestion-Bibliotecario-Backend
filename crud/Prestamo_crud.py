@@ -2,7 +2,7 @@ from datetime import date
 from uuid import UUID
 from typing import List, Optional
 from entities.Prestamo import Prestamo
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 
 class PrestamoCRUD:
@@ -19,7 +19,15 @@ class PrestamoCRUD:
         """
         self.db = db
 
-    def crear_prestamo(self, fecha_prestamo: date, fecha_entrega: date, id_material: UUID, cod_cliente: UUID, id_biblioteca: UUID, id_usuario_crea: UUID = None) -> Prestamo:
+    def crear_prestamo(
+        self,
+        fecha_prestamo: date,
+        fecha_entrega: date,
+        id_material: UUID,
+        cod_cliente: UUID,
+        id_biblioteca: UUID,
+        id_usuario_crea: UUID = None,
+    ) -> Prestamo:
         """
         Crea un nuevo préstamo de material bibliográfico.
 
@@ -39,7 +47,9 @@ class PrestamoCRUD:
         if not fecha_entrega:
             raise ValueError("La fecha de entrega es obligatoria")
         if fecha_entrega < fecha_prestamo:
-            raise ValueError("La fecha de entrega no puede ser anterior a la fecha de préstamo")
+            raise ValueError(
+                "La fecha de entrega no puede ser anterior a la fecha de préstamo"
+            )
         if not id_material:
             raise ValueError("El material es obligatorio")
         if not cod_cliente:
@@ -49,9 +59,12 @@ class PrestamoCRUD:
 
         if id_usuario_crea is None:
             from entities.Usuario import Usuario
+
             admin = self.db.query(Usuario).filter(Usuario.es_admin == True).first()
             if not admin:
-                raise ValueError("No se encontró un usuario administrador para crear el préstamo")
+                raise ValueError(
+                    "No se encontró un usuario administrador para crear el préstamo"
+                )
             id_usuario_crea = admin.id_usuario
 
         prestamo = Prestamo(
@@ -60,15 +73,17 @@ class PrestamoCRUD:
             id_material=id_material,
             cod_cliente=cod_cliente,
             id_biblioteca=id_biblioteca,
-            id_usuario_crea=id_usuario_crea
+            id_usuario_crea=id_usuario_crea,
         )
-        
+
         self.db.add(prestamo)
         self.db.commit()
         self.db.refresh(prestamo)
         return prestamo
 
-    def obtener_prestamo(self, id_prestamo: UUID, id_biblioteca: UUID) -> Optional[Prestamo]:
+    def obtener_prestamo(
+        self, id_prestamo: UUID, id_biblioteca: UUID
+    ) -> Optional[Prestamo]:
         """
         Obtiene un préstamo específico.
 
@@ -79,23 +94,27 @@ class PrestamoCRUD:
         Returns:
             Optional[Prestamo]: Préstamo encontrado o None si no existe.
         """
-        return self.db.query(Prestamo).filter(Prestamo.id == id_prestamo, Prestamo.id_biblioteca == id_biblioteca).first()
+        return (
+            self.db.query(Prestamo)
+            .filter(Prestamo.id == id_prestamo, Prestamo.id_biblioteca == id_biblioteca)
+            .first()
+        )
 
-    def obtener_prestamos(self, id_biblioteca: UUID, skip: int = 0, limit: int = 100) -> List[Prestamo]:
-        """
-        Obtiene una lista de préstamos registrados en una biblioteca.
+    def obtener_prestamos(
+        self, id_biblioteca: UUID, skip: int = 0, limit: int = 100
+    ) -> List[Prestamo]:
+        query = self.db.query(Prestamo).options(
+            selectinload(Prestamo.biblioteca),
+            selectinload(Prestamo.material),
+            selectinload(Prestamo.cliente),
+        )
+        if id_biblioteca:
+            query = query.filter(Prestamo.id_biblioteca == id_biblioteca)
+        return query.offset(skip).limit(limit).all()
 
-        Args:
-            id_biblioteca (UUID): Identificador único de la biblioteca.
-            skip (int): Número de registros a omitir.
-            limit (int): Número máximo de registros a devolver.
-
-        Returns:
-            List[Prestamo]: Lista de préstamos.
-        """
-        return (self.db.query(Prestamo).options(joinedload(Prestamo.cliente), joinedload(Prestamo.material)).filter(Prestamo.id_biblioteca == id_biblioteca).offset(skip).limit(limit).all())
-
-    def obtener_prestamos_por_fecha_prestamo(self, fecha_prestamo: date, id_biblioteca: UUID) -> List[Prestamo]:
+    def obtener_prestamos_por_fecha_prestamo(
+        self, fecha_prestamo: date, id_biblioteca: UUID
+    ) -> List[Prestamo]:
         """
         Obtiene préstamos realizados en una fecha específica.
 
@@ -106,9 +125,18 @@ class PrestamoCRUD:
         Returns:
             List[Prestamo]: Lista de préstamos realizados en esa fecha.
         """
-        return self.db.query(Prestamo).filter(Prestamo.fecha_prestamo == fecha_prestamo, Prestamo.id_biblioteca == id_biblioteca).all()
+        return (
+            self.db.query(Prestamo)
+            .filter(
+                Prestamo.fecha_prestamo == fecha_prestamo,
+                Prestamo.id_biblioteca == id_biblioteca,
+            )
+            .all()
+        )
 
-    def obtener_prestamos_por_fecha_entrega(self, fecha_entrega: date, id_biblioteca: UUID) -> List[Prestamo]:
+    def obtener_prestamos_por_fecha_entrega(
+        self, fecha_entrega: date, id_biblioteca: UUID
+    ) -> List[Prestamo]:
         """
         Obtiene préstamos cuya fecha de entrega coincide con la indicada.
 
@@ -119,9 +147,18 @@ class PrestamoCRUD:
         Returns:
             List[Prestamo]: Lista de préstamos que cumplen con la fecha de entrega.
         """
-        return self.db.query(Prestamo).filter(Prestamo.fecha_entrega == fecha_entrega, Prestamo.id_biblioteca == id_biblioteca).all()
+        return (
+            self.db.query(Prestamo)
+            .filter(
+                Prestamo.fecha_entrega == fecha_entrega,
+                Prestamo.id_biblioteca == id_biblioteca,
+            )
+            .all()
+        )
 
-    def obtener_prestamo_por_material(self, id_material: UUID, id_biblioteca: UUID) -> Optional[Prestamo]:
+    def obtener_prestamo_por_material(
+        self, id_material: UUID, id_biblioteca: UUID
+    ) -> Optional[Prestamo]:
         """
         Obtiene el préstamo asociado a un material específico.
 
@@ -132,9 +169,18 @@ class PrestamoCRUD:
         Returns:
             Optional[Prestamo]: Préstamo encontrado o None si no existe.
         """
-        return self.db.query(Prestamo).filter(Prestamo.id_material == id_material, Prestamo.id_biblioteca == id_biblioteca).first()
-    
-    def obtener_prestamos_por_cliente(self, cod_cliente: UUID, id_biblioteca: UUID) -> List[Prestamo]:
+        return (
+            self.db.query(Prestamo)
+            .filter(
+                Prestamo.id_material == id_material,
+                Prestamo.id_biblioteca == id_biblioteca,
+            )
+            .first()
+        )
+
+    def obtener_prestamos_por_cliente(
+        self, cod_cliente: UUID, id_biblioteca: UUID
+    ) -> List[Prestamo]:
         """
         Obtiene los préstamos asociados a un cliente específico.
 
@@ -145,9 +191,22 @@ class PrestamoCRUD:
         Returns:
             List[Prestamo]: Lista de préstamos del cliente.
         """
-        return self.db.query(Prestamo).filter(Prestamo.cod_cliente == cod_cliente, Prestamo.id_biblioteca == id_biblioteca).all()
+        return (
+            self.db.query(Prestamo)
+            .filter(
+                Prestamo.cod_cliente == cod_cliente,
+                Prestamo.id_biblioteca == id_biblioteca,
+            )
+            .all()
+        )
 
-    def actualizar_prestamo(self, id_prestamo: UUID, id_biblioteca: UUID, id_usuario_edita: UUID = None, **kwargs) -> Optional[Prestamo]:
+    def actualizar_prestamo(
+        self,
+        id_prestamo: UUID,
+        id_biblioteca: UUID,
+        id_usuario_edita: UUID = None,
+        **kwargs
+    ) -> Optional[Prestamo]:
         """
         Actualiza los datos de un préstamo.
 
@@ -166,9 +225,12 @@ class PrestamoCRUD:
 
         if id_usuario_edita is None:
             from entities.Usuario import Usuario
+
             admin = self.db.query(Usuario).filter(Usuario.es_admin == True).first()
             if not admin:
-                raise ValueError("No se encontró un usuario administrador para editar el préstamo")
+                raise ValueError(
+                    "No se encontró un usuario administrador para editar el préstamo"
+                )
             id_usuario_edita = admin.id_usuario
 
         prestamo.id_usuario_edita = id_usuario_edita
@@ -199,7 +261,13 @@ class PrestamoCRUD:
         self.db.refresh(prestamo)
         return prestamo
 
-    def actualizar_fecha_entrega(self, id_prestamo: UUID, id_biblioteca: UUID, nueva_fecha: date, id_usuario_edita: UUID = None) -> Optional[Prestamo]:
+    def actualizar_fecha_entrega(
+        self,
+        id_prestamo: UUID,
+        id_biblioteca: UUID,
+        nueva_fecha: date,
+        id_usuario_edita: UUID = None,
+    ) -> Optional[Prestamo]:
         """
         Actualiza únicamente la fecha de entrega de un préstamo.
 
@@ -214,7 +282,12 @@ class PrestamoCRUD:
         """
         if not isinstance(nueva_fecha, date):
             raise ValueError("La nueva fecha de entrega debe ser un objeto date")
-        return self.actualizar_prestamo(id_prestamo, id_biblioteca=id_biblioteca, id_usuario_edita=id_usuario_edita, fecha_entrega=nueva_fecha)
+        return self.actualizar_prestamo(
+            id_prestamo,
+            id_biblioteca=id_biblioteca,
+            id_usuario_edita=id_usuario_edita,
+            fecha_entrega=nueva_fecha,
+        )
 
     def eliminar_prestamo(self, id_prestamo: UUID, id_biblioteca: UUID) -> bool:
         """
