@@ -52,7 +52,9 @@ async def obtener_sancion(
         )
 
 
-@router.get("/{id_biblioteca}/nombre/{cod_cliente}", response_model=List[SancionResponse])
+@router.get(
+    "/{id_biblioteca}/cliente/{cod_cliente}", response_model=List[SancionResponse]
+)
 async def obtener_sancion_por_cliente(
     cod_cliente: UUID, id_biblioteca: UUID, db: Session = Depends(get_db)
 ):
@@ -78,8 +80,9 @@ async def crear_sancion(sancion_data: SancionCreate, db: Session = Depends(get_d
     try:
         Sancion_crud = SancionCRUD(db)
         sancion = Sancion_crud.crear_sancion(
-            monto=sancion_data.monto,
+            motivo=sancion_data.motivo,
             fecha_sancion=sancion_data.fecha_sancion,
+            monto=sancion_data.monto,
             cod_cliente=sancion_data.cod_cliente,
             id_biblioteca=sancion_data.id_biblioteca,
         )

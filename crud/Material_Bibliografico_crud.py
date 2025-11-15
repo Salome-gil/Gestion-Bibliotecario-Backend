@@ -1,7 +1,7 @@
 from typing import List, Optional
 from uuid import UUID
 from entities.Material_Bibliografico import Material_Bibliografico
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import func
 
 
@@ -19,7 +19,16 @@ class MaterialBibliograficoCRUD:
         """
         self.db = db
 
-    def crear_material(self, id_biblioteca: UUID, titulo: str, autor: str, estado: str, id_sede: UUID, id_categoria: UUID, id_usuario_crea: UUID = None) -> Material_Bibliografico:
+    def crear_material(
+        self,
+        id_biblioteca: UUID,
+        titulo: str,
+        autor: str,
+        estado: str,
+        id_sede: UUID,
+        id_categoria: UUID,
+        id_usuario_crea: UUID = None,
+    ) -> Material_Bibliografico:
         """
         Crea un nuevo material bibliográfico.
 
@@ -40,27 +49,30 @@ class MaterialBibliograficoCRUD:
             raise ValueError("El título del material es obligatorio")
         if len(titulo) > 150:
             raise ValueError("El título no puede exceder 150 caracteres")
-    
+
         if autor and len(autor.strip()) > 100:
             raise ValueError("El nombre del autor no puede exceder 100 caracteres")
-        
+
         if estado and len(estado.strip()) > 50:
             raise ValueError("El estado no puede exceder 50 caracteres")
 
         if id_usuario_crea is None:
             from entities.Usuario import Usuario
+
             admin = self.db.query(Usuario).filter(Usuario.es_admin == True).first()
             if not admin:
-                raise ValueError("No se encontró un usuario administrador para crear el material")
+                raise ValueError(
+                    "No se encontró un usuario administrador para crear el material"
+                )
             id_usuario_crea = admin.id_usuario
 
         material = Material_Bibliografico(
             id_biblioteca=id_biblioteca,
-            titulo= titulo.strip(),
-            autor= autor.strip(),
-            estado= estado.strip(),
-            id_sede= id_sede,
-            id_categoria= id_categoria,
+            titulo=titulo.strip(),
+            autor=autor.strip(),
+            estado=estado.strip(),
+            id_sede=id_sede,
+            id_categoria=id_categoria,
             id_usuario_crea=id_usuario_crea,
         )
 
@@ -69,7 +81,9 @@ class MaterialBibliograficoCRUD:
         self.db.refresh(material)
         return material
 
-    def obtener_material(self, id_material: UUID, id_biblioteca: UUID) -> Optional[Material_Bibliografico]:
+    def obtener_material(
+        self, id_material: UUID, id_biblioteca: UUID
+    ) -> Optional[Material_Bibliografico]:
         """
         Obtiene un material bibliográfico por su ID.
 
@@ -80,23 +94,29 @@ class MaterialBibliograficoCRUD:
         Returns:
             Optional[Material_Bibliografico]: Material encontrado o None si no existe.
         """
-        return (self.db.query(Material_Bibliografico).filter(Material_Bibliografico.id_material == id_material, Material_Bibliografico.id_biblioteca == id_biblioteca).first())
+        return (
+            self.db.query(Material_Bibliografico)
+            .filter(
+                Material_Bibliografico.id_material == id_material,
+                Material_Bibliografico.id_biblioteca == id_biblioteca,
+            )
+            .first()
+        )
 
-    def obtener_materiales(self, id_biblioteca: UUID, skip: int = 0, limit: int = 100) -> List[Material_Bibliografico]:
-        """
-        Obtiene una lista de materiales bibliográficos.
+    def obtener_materiales(
+        self, id_biblioteca: UUID, skip: int = 0, limit: int = 100
+    ) -> List[Material_Bibliografico]:
+        query = self.db.query(Material_Bibliografico).options(
+            selectinload(Material_Bibliografico.biblioteca),
+            selectinload(Material_Bibliografico.categoria),
+        )
+        if id_biblioteca:
+            query = query.filter(Material_Bibliografico.id_biblioteca == id_biblioteca)
+        return query.offset(skip).limit(limit).all()
 
-        Args:
-            id_biblioteca (UUID): Identificador único de la biblioteca.
-            skip (int): Número de registros a omitir (para paginación).
-            limit (int): Número máximo de registros a devolver.
-
-        Returns:
-            List[Material_Bibliografico]: Lista de materiales.
-        """
-        return self.db.query(Material_Bibliografico).filter(Material_Bibliografico.id_biblioteca == id_biblioteca).offset(skip).limit(limit).all()
-
-    def obtener_materiales_por_titulo(self, titulo: str, id_biblioteca: UUID) -> List[Material_Bibliografico]:
+    def obtener_materiales_por_titulo(
+        self, titulo: str, id_biblioteca: UUID
+    ) -> List[Material_Bibliografico]:
         """
         Obtiene materiales por título.
 
@@ -108,9 +128,18 @@ class MaterialBibliograficoCRUD:
             List[Material_Bibliografico]: Lista de materiales que coinciden con el título.
         """
         titulo = titulo.strip()
-        return (self.db.query(Material_Bibliografico).filter(func.lower(Material_Bibliografico.titulo) == titulo.lower(),Material_Bibliografico.id_biblioteca == id_biblioteca).all())
-    
-    def obtener_materiales_por_autor(self, autor: str, id_biblioteca: UUID) -> List[Material_Bibliografico]:
+        return (
+            self.db.query(Material_Bibliografico)
+            .filter(
+                func.lower(Material_Bibliografico.titulo) == titulo.lower(),
+                Material_Bibliografico.id_biblioteca == id_biblioteca,
+            )
+            .all()
+        )
+
+    def obtener_materiales_por_autor(
+        self, autor: str, id_biblioteca: UUID
+    ) -> List[Material_Bibliografico]:
         """
         Obtiene materiales por autor.
 
@@ -122,9 +151,18 @@ class MaterialBibliograficoCRUD:
             List[Material_Bibliografico]: Lista de materiales que coinciden con el autor.
         """
         autor = autor.strip()
-        return (self.db.query(Material_Bibliografico).filter(func.lower(Material_Bibliografico.autor) == autor.lower(),Material_Bibliografico.id_biblioteca == id_biblioteca).all())
+        return (
+            self.db.query(Material_Bibliografico)
+            .filter(
+                func.lower(Material_Bibliografico.autor) == autor.lower(),
+                Material_Bibliografico.id_biblioteca == id_biblioteca,
+            )
+            .all()
+        )
 
-    def obtener_materiales_por_estado(self, estado: str, id_biblioteca: UUID) -> List[Material_Bibliografico]:
+    def obtener_materiales_por_estado(
+        self, estado: str, id_biblioteca: UUID
+    ) -> List[Material_Bibliografico]:
         """
         Obtiene materiales por estado.
 
@@ -136,9 +174,18 @@ class MaterialBibliograficoCRUD:
             List[Material_Bibliografico]: Lista de materiales que coinciden con el estado.
         """
         estado = estado.strip()
-        return (self.db.query(Material_Bibliografico).filter(Material_Bibliografico.estado == estado, Material_Bibliografico.id_biblioteca == id_biblioteca).all())
-    
-    def obtener_materiales_por_categoria(self, id_categoria: UUID, id_biblioteca: UUID) -> List[Material_Bibliografico]:
+        return (
+            self.db.query(Material_Bibliografico)
+            .filter(
+                Material_Bibliografico.estado == estado,
+                Material_Bibliografico.id_biblioteca == id_biblioteca,
+            )
+            .all()
+        )
+
+    def obtener_materiales_por_categoria(
+        self, id_categoria: UUID, id_biblioteca: UUID
+    ) -> List[Material_Bibliografico]:
         """
         Obtiene materiales por categoría.
 
@@ -149,9 +196,22 @@ class MaterialBibliograficoCRUD:
         Returns:
             List[Material_Bibliografico]: Lista de materiales de la categoría indicada.
         """
-        return (self.db.query(Material_Bibliografico).filter(Material_Bibliografico.id_categoria == id_categoria, Material_Bibliografico.id_biblioteca == id_biblioteca).all())
+        return (
+            self.db.query(Material_Bibliografico)
+            .filter(
+                Material_Bibliografico.id_categoria == id_categoria,
+                Material_Bibliografico.id_biblioteca == id_biblioteca,
+            )
+            .all()
+        )
 
-    def actualizar_material(self, id_material: UUID, id_biblioteca: UUID, id_usuario_edita: UUID = None, **kwargs) -> Optional[Material_Bibliografico]:
+    def actualizar_material(
+        self,
+        id_material: UUID,
+        id_biblioteca: UUID,
+        id_usuario_edita: UUID = None,
+        **kwargs
+    ) -> Optional[Material_Bibliografico]:
         """
         Actualiza los datos de un material bibliográfico.
 
@@ -200,9 +260,12 @@ class MaterialBibliograficoCRUD:
 
         if id_usuario_edita is None:
             from entities.Usuario import Usuario
+
             admin = self.db.query(Usuario).filter(Usuario.es_admin == True).first()
             if not admin:
-                raise ValueError("No se encontró un usuario administrador para editar el material")
+                raise ValueError(
+                    "No se encontró un usuario administrador para editar el material"
+                )
             id_usuario_edita = admin.id_usuario
 
         material.id_usuario_edita = id_usuario_edita
@@ -215,7 +278,9 @@ class MaterialBibliograficoCRUD:
         self.db.refresh(material)
         return material
 
-    def actualizar_estado(self, id_material: UUID, id_biblioteca: UUID, nuevo_estado: str) -> Optional[Material_Bibliografico]:
+    def actualizar_estado(
+        self, id_material: UUID, id_biblioteca: UUID, nuevo_estado: str
+    ) -> Optional[Material_Bibliografico]:
         """
         Actualiza únicamente el estado de un material.
 
@@ -231,8 +296,10 @@ class MaterialBibliograficoCRUD:
             raise ValueError("El estado del material es obligatorio")
         if len(nuevo_estado) > 80:
             raise ValueError("El estado no puede exceder 80 caracteres")
-    
-        return self.actualizar_material(id_material, id_biblioteca=id_biblioteca, estado= nuevo_estado)
+
+        return self.actualizar_material(
+            id_material, id_biblioteca=id_biblioteca, estado=nuevo_estado
+        )
 
     def eliminar_material(self, id_material: UUID, id_biblioteca: UUID) -> bool:
         """
