@@ -60,7 +60,7 @@ async def startup_event():
     print("Configurando base de datos...")
     create_tables()
     print("Sistema listo para usar.")
-    print("Documentación disponible en: http://localhost:8000/docs")
+    print("Documentación disponible en: https://gestion-bibliotecario-backend.onrender.com/docs#")
 
 
 @app.get("/", tags=["raíz"])
